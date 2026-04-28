@@ -17,14 +17,25 @@
             display: flex; 
             align-items: center; 
             justify-content: center; 
-            font-family: 'Courier New', monospace; 
+            font-family: 'Consolas', 'Courier New', monospace; 
             font-weight: bold; 
-            font-size: 1.6rem; 
+            font-size: 1.8rem; 
             white-space: nowrap; 
             overflow-x: auto;
-            letter-spacing: -0.05em;
+            letter-spacing: -0.02em; /* 전체 자간을 살짝 좁힘 */
         }
-        .equation-box span { margin: 0 0.15rem; }
+        
+        /* 화학 기호(+, →)에만 넓은 여백 부여 */
+        .symbol { 
+            margin: 0 1rem !important; 
+            color: #94a3b8;
+        }
+
+        /* 분자식 텍스트 내의 간격은 최소화 */
+        .formula {
+            display: inline-block;
+            margin: 0 !important;
+        }
         
         .q-mark { 
             background: #334155; 
@@ -34,7 +45,7 @@
             color: #60a5fa; 
             min-width: 2.2rem; 
             text-align: center;
-            margin: 0 0.3rem !important;
+            margin: 0 0.4rem !important;
         }
         
         .hidden { display: none !important; }
@@ -47,7 +58,7 @@
 <body class="p-4 min-h-screen flex flex-col items-center">
     <div class="max-w-2xl w-full">
         <nav class="flex justify-between items-center mb-6 px-2">
-            <h1 class="text-xl font-black text-slate-800">🧪 질량 보존 챌린지</h1>
+            <h1 class="text-xl font-black text-slate-800">🧪 질량 보존 법칙 챌린지</h1>
             <button onclick="showReviewNote()" class="text-sm font-bold bg-white text-blue-600 border border-blue-200 px-4 py-2 rounded-full shadow-sm hover:bg-blue-50">📖 내 오답 노트</button>
         </nav>
 
@@ -146,35 +157,35 @@
         const problems = [
             { 
                 id: 1, 
-                eq: "2H₂+O₂→?H₂O", 
+                eq: "2H₂ + O₂ → ?H₂O", 
                 ans: 2, 
                 text: "수소와 산소의 반응", 
                 hint: "반응 전 산소(O) 원자가 2개이므로, 물(H₂O)도 2분자가 있어야 합니다." 
             },
             { 
                 id: 2, 
-                eq: "N₂+3H₂→?NH₃", 
+                eq: "N₂ + 3H₂ → ?NH₃", 
                 ans: 2, 
                 text: "암모니아 합성 반응", 
                 hint: "질소(N) 원자 2개를 맞추려면 암모니아(NH₃) 앞에 어떤 숫자가 필요할까요?" 
             },
             { 
                 id: 3, 
-                eq: "CH₄+2O₂→CO₂+?H₂O", 
+                eq: "CH₄ + 2O₂ → CO₂ + ?H₂O", 
                 ans: 2, 
                 text: "메테인의 연소 반응", 
                 hint: "반응 후 산소 원자가 총 4개입니다. 물(H₂O) 1분자에는 산소가 1개 들어있습니다." 
             },
             { 
                 id: 4, 
-                eq: "2Mg+O₂→?MgO", 
+                eq: "2Mg + O₂ → ?MgO", 
                 ans: 2, 
                 text: "마그네슘의 연소 반응", 
                 hint: "마그네슘(Mg)과 산소(O) 원자가 각각 2개씩 결합하여 몇 개의 MgO가 될까요?" 
             },
             { 
                 id: 5, 
-                eq: "H₂+Cl₂→?HCl", 
+                eq: "H₂ + Cl₂ → ?HCl", 
                 ans: 2, 
                 text: "염화수소 생성 반응", 
                 hint: "수소 원자 2개와 염소 원자 2개가 만나 염화수소(HCl) 몇 분자를 만들까요?" 
@@ -183,7 +194,7 @@
 
         let currentIdx = 0;
         let score = 0;
-        let attempts = 0; // 현재 문제 시도 횟수
+        let attempts = 0;
         const MAX_ATTEMPTS = 2;
         let roundWrongOnes = [];
 
@@ -198,6 +209,24 @@
             loadQuestion();
         }
 
+        // 화학 식을 보기 좋게 렌더링하는 함수
+        function renderEquation(rawEq) {
+            // 숫자(아래첨자용)와 기호(+, →)를 구분하여 렌더링
+            const tokens = rawEq.split(/(\s\+\s|\s→\s|\?)/);
+            return tokens.map(token => {
+                if (token === " + " || token === " → ") {
+                    return `<span class="symbol">${token.trim()}</span>`;
+                } else if (token === "?") {
+                    return `<span class="q-mark" id="box-target">?</span>`;
+                } else {
+                    // 분자식 내의 숫자를 <sub> 태그로 감싸기 (계수 제외)
+                    // 이 로직은 간단한 분자식(H2, O2 등)을 위한 것
+                    const formatted = token.trim().replace(/([A-Z][a-z]?)(\d+)/g, '$1<sub>$2</sub>');
+                    return `<span class="formula">${formatted}</span>`;
+                }
+            }).join('');
+        }
+
         function loadQuestion() {
             const p = problems[currentIdx];
             attempts = 0;
@@ -205,13 +234,7 @@
             updatePotentialScore();
             
             document.getElementById('q-count').innerText = `문제 ${currentIdx + 1} / ${problems.length}`;
-            
-            const parts = p.eq.split('?');
-            document.getElementById('equation-display').innerHTML = `
-                <span>${parts[0]}</span>
-                <span class="q-mark" id="box-target">?</span>
-                <span>${parts[1]}</span>
-            `;
+            document.getElementById('equation-display').innerHTML = renderEquation(p.eq);
             
             const input = document.getElementById('user-input');
             input.value = '';
@@ -242,12 +265,11 @@
             fb.classList.remove('hidden');
 
             if(userVal === p.ans) {
-                // 정답 시
                 let earned = (attempts === 0) ? 20 : 10;
                 score += earned;
                 document.getElementById('current-score').innerText = score;
                 document.getElementById('box-target').innerText = p.ans;
-                document.getElementById('box-target').classList.replace('text-blue-500', 'text-green-500');
+                document.getElementById('box-target').classList.add('text-green-500');
                 
                 fb.className = "mt-6 p-4 rounded-xl bg-green-100 text-green-700 fade-in text-center";
                 fbStatus.innerText = `🎉 정답입니다! (+${earned}점)`;
@@ -256,21 +278,18 @@
                 disableInput();
                 setTimeout(nextQuestion, 1500);
             } else {
-                // 오답 시
                 attempts++;
                 score = Math.max(0, score - 20);
                 document.getElementById('current-score').innerText = score;
                 updateHearts();
                 updatePotentialScore();
                 
-                // 오답 데이터 기록 (한 번이라도 틀리면 오답노트로)
                 if(!roundWrongOnes.find(x => x.id === p.id)) {
                     roundWrongOnes.push(p);
                     saveToLocalStorage(p);
                 }
 
                 if(attempts >= MAX_ATTEMPTS) {
-                    // 기회 소진
                     fb.className = "mt-6 p-4 rounded-xl bg-slate-100 text-slate-700 fade-in text-center border border-slate-300";
                     fbStatus.innerText = `😿 모든 기회를 소진했습니다.`;
                     fbHint.innerText = `정답은 '${p.ans}'입니다. 다음 문제로 넘어갑니다.`;
@@ -278,7 +297,6 @@
                     disableInput();
                     setTimeout(nextQuestion, 2500);
                 } else {
-                    // 한 번 더 기회 있음
                     fb.className = "mt-6 p-4 rounded-xl bg-red-50 text-red-700 fade-in text-left border border-red-100";
                     fbStatus.innerText = "오답입니다! (-20점)";
                     fbHint.innerText = `💡 힌트: ${p.hint}`;
